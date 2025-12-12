@@ -128,7 +128,6 @@
 
             /* 모바일에서만 핸들 표시 */
             .panel-handle-area { display: flex; }
-
             .panel-header { margin-bottom: 15px; }
             .panel-title { font-size: 1.25rem; margin-bottom: 5px; }
             /* Hide non-essential elements when collapsed could be added here if needed, 
@@ -312,7 +311,7 @@
             center: [127.0, 36.0], zoom: 7, attributionControl: false, preserveDrawingBuffer: true
         });
 
-        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+        // map.addControl(new maplibregl.NavigationControl(), 'top-right');
         map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
 
         map.on('load', () => {

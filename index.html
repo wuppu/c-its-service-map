@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-ITS Service Analysis</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    
+    <style>
+        :root {
+            --primary-color: #2564eb90;
+            --primary-hover: #1d4ed8ab;
+            --danger-color: #ef4444ab;
+            --text-main: #1f293790;
+            --text-sub: #6b728090;
+            --bg-panel: rgba(255, 255, 255, 0.95);
+            --border-color: #e5e7eb90;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; color: var(--text-main); height: 100vh; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
+
+        /* Panel Style */
+        .panel {
+            position: absolute; top: 24px; left: 24px; width: 340px;
+            background-color: rgba(255, 255, 255, 0.75); backdrop-filter: blur(8px);
+            padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10; border: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+        }
+        .panel-header { margin-bottom: 20px; }
+        .panel-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 10px 0; color: #111827; letter-spacing: -0.02em; }
+        .panel-desc { font-size: 0.9rem; color: var(--text-sub); line-height: 1.5; margin: 0; }
+
+        .control-group { margin-bottom: 10px; }
+        .label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 8px; color: #374151; }
+
+        .file-upload-wrapper { position: relative; margin-bottom: 12px; }
+        .file-upload-input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2; }
+        .file-upload-button {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; padding: 12px 16px;
+            background-color: var(--primary-color); color: white; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 500; transition: background-color 0.2s;
+            box-sizing: border-box; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .file-upload-input:hover + .file-upload-button { background-color: var(--primary-hover); }
+
+        .input-field {
+            width: 100%; padding: 10px 12px;
+            background-color: #ffffff80;
+            border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 0.9rem; box-sizing: border-box; font-family: inherit;
+        }
+        .status-msg { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; color: var(--text-sub); font-weight: 500; }
+
+        .legend { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color); }
+        .legend-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; font-weight: 600; margin-bottom: 12px; }
+        .legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .legend-item { display: flex; align-items: center; font-size: 0.875rem; color: #4b5563; }
+        .color-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; border: 1px solid rgba(0,0,0,0.1); }
+
+        .panel-footer { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color); }
+        .screenshot-button {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; padding: 12px 16px;
+            background-color: var(--text-main); color: white; border-radius: 8px;
+            font-size: 0.95rem; font-weight: 600; transition: background-color 0.2s;
+            box-sizing: border-box; border: none; cursor: pointer; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .screenshot-button:hover { background-color: #000000ab; }
+        .screenshot-button svg { margin-right: 8px; }
+
+        /* HUD Style */
+        .map-hud {
+            position: absolute; 
+            top: 24px; /* Default: Top */
+            left: 50%; 
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.75); backdrop-filter: blur(8px);
+            padding: 8px 24px; border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex; align-items: center; gap: 24px; z-index: 20;
+            border: 1px solid rgba(255,255,255,0.5);
+            transition: top 0.3s, bottom 0.3s; /* Smooth transition */
+        }
+
+        /* ✅ Responsive HUD: Move to bottom on smaller screens */
+        @media (max-width: 900px) {
+            .map-hud {
+                top: auto;
+                bottom: 40px;
+                gap: 16px;
+                padding: 8px 16px;
+            }
+
+            /* Text Replacement Trick using font-size:0 and ::after */
+            .lbl-start { font-size: 0 !important; }
+            .lbl-start::after { content: "TEST"; font-size: 0.7rem; }
+
+            .lbl-v2x { font-size: 0 !important; }
+            .lbl-v2x::after { content: "V2X"; font-size: 0.7rem; }
+            
+            .lbl-camera { font-size: 0 !important; }
+            .lbl-camera::after { content: "CAMERA"; font-size: 0.7rem; }
+        }
+
+        .hud-btn {
+            display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; border-radius: 50%;
+            border: 2px solid var(--danger-color); color: var(--danger-color);
+            background: #ffffff80; cursor: pointer; transition: all 0.2s;
+            flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .hud-btn:hover, .hud-btn.active { background-color: var(--danger-color); color: #ffffffab; }
+        .hud-btn svg { width: 20px; height: 20px; }
+        
+        .hud-divider { width: 1px; height: 30px; background-color: #e5e7eb; }
+
+        .hud-item { display: flex; flex-direction: column; align-items: center; min-width: 80px; }
+        .hud-label {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+            color: #6b7280; font-weight: 700; margin-bottom: 2px;
+        }
+        .hud-value { font-size: 1.15rem; font-weight: 800; color: #111827; font-variant-numeric: tabular-nums; }
+
+        /* DOM Anchor Marker Style */
+        .anchor-wrapper {
+            position: relative;
+            width: 40px; height: 40px;
+            cursor: move;
+            pointer-events: auto;
+        }
+        .anchor-pin {
+            position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 32px; height: 32px; 
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ef4444' stroke='%23b91c1c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'%3E%3C/path%3E%3Ccircle cx='12' cy='10' r='3' fill='white'/%3E%3C/svg%3E");
+            background-size: contain; background-repeat: no-repeat;
+            z-index: 2; transition: transform 0.1s;
+        }
+        .anchor-shadow {
+            position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+            width: 12px; height: 4px; background: rgba(0,0,0,0.3);
+            border-radius: 50%; z-index: 1; filter: blur(1px);
+        }
+        
+        .maplibregl-popup { z-index: 100 !important; }
+        .maplibregl-popup-content {
+            border-radius: 12px; padding: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            font-family: 'Inter', sans-serif; font-size: 0.9rem;
+            border: 1px solid var(--border-color); maxWidth: 300px;
+        }
+        .popup-row { margin-bottom: 6px; display: flex; justify-content: space-between; }
+        .popup-label { color: var(--text-sub); font-size: 0.8rem; margin-right: 12px; }
+        .popup-value { font-weight: 600; color: var(--text-main); text-align: right; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div id="mapHud" class="map-hud">
+        <button id="setAnchorBtn" class="hud-btn" title="Set/Move Anchor Point">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+        </button>
+        <div class="hud-divider"></div>
+        <div class="hud-item">
+            <span class="hud-label lbl-start">TEST DIST</span>
+            <span class="hud-value" id="hudStartDist">-</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-label lbl-v2x" style="color:#10b981;">V2X DETECTED DIST</span>
+            <span class="hud-value" id="hudV2XDist">-</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-label lbl-camera" style="color:#3b82f6;">CAMERA DETECTED DIST</span>
+            <span class="hud-value" id="hudCamDist">-</span>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h1 class="panel-title">C-ITS Service Analysis</h1>
+            <p class="panel-desc">
+                Visualizes autonomous vehicle and V2X interaction data on a map, displays traffic signal information from SPAT messages, and maps camera recognition data from autonomous vehicles.
+            </p>
+        </div>
+
+        <div class="control-group">
+            <div class="file-upload-wrapper">
+                <input type="file" id="csvFileInput" class="file-upload-input" accept=".csv" />
+                <div class="file-upload-button">Upload CSV Log File</div>
+            </div>
+            
+            <label class="label">Sampling Interval (meters)</label>
+            <input type="number" id="minDistInput" class="input-field" value="3" min="0" step="0.5">
+            
+            <div id="statusMsg" class="status-msg">Please select a file to analyze.</div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-title">Traffic Signal Status</div>
+            <div class="legend-grid">
+                <div class="legend-item"><span class="color-dot" style="background-color: #10b981;"></span>Green (Go)</div>
+                <div class="legend-item"><span class="color-dot" style="background-color: #f59e0b;"></span>Yellow (Caution)</div>
+                <div class="legend-item"><span class="color-dot" style="background-color: #ef4444;"></span>Red (Stop)</div>
+                <div class="legend-item"><span class="color-dot" style="background-color: #3b82f6;"></span>Camera Detect</div>
+            </div>
+        </div>
+
+        <div class="panel-footer">
+            <button id="screenshotBtn" class="screenshot-button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+                Save Screenshot
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <script>
+        function updateStatus(msg, isError = false) {
+            const el = document.getElementById('statusMsg');
+            el.innerText = msg;
+            el.style.color = isError ? '#ef4444' : '#2563eb';
+        }
+        
+        function updateHud(startDist, v2xDist, camDist) {
+            document.getElementById('hudStartDist').innerText = (startDist !== null && !isNaN(startDist)) ? startDist.toFixed(1) + " m" : "-";
+            document.getElementById('hudV2XDist').innerText = (v2xDist !== null && !isNaN(v2xDist)) ? v2xDist.toFixed(1) + " m" : "-";
+            document.getElementById('hudCamDist').innerText = (camDist !== null && !isNaN(camDist)) ? camDist.toFixed(1) + " m" : "-";
+        }
+
+        let loadedData = [];
+        let anchorMarker = null;
+        let isAnchorMode = false;
+        let anchorLocation = null;
+        let isDraggingAnchor = false;
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                "version": 8,
+                "sources": { "osm": { "type": "raster", "tiles": ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"], "tileSize": 256, "attribution": "&copy; OpenStreetMap" } },
+                "layers": [{ "id": "osm", "type": "raster", "source": "osm" }]
+            },
+            center: [127.0, 36.0], zoom: 7, attributionControl: false, preserveDrawingBuffer: true
+        });
+
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+        map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
+
+        map.on('load', () => {
+            // Anchor Image
+            const pinImage = new Image();
+            pinImage.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ef4444' stroke='%23b91c1c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'%3E%3C/path%3E%3Ccircle cx='12' cy='10' r='3' fill='white'/%3E%3C/svg%3E";
+            pinImage.onload = () => { if (!map.hasImage('anchor-icon')) map.addImage('anchor-icon', pinImage); };
+
+            map.addSource('v2x-data', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addSource('anchor-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+
+            // Layers
+            map.addLayer({
+                id: 'v2x-points', type: 'circle', source: 'v2x-data',
+                filter: ['==', ['get', 'type'], 'v2x'],
+                paint: {
+                    'circle-radius': 5,
+                    'circle-color': ['match', ['get', 'signal'], 'G', '#10b981', 'Y', '#f59e0b', 'R', '#ef4444', '#9ca3af'],
+                    'circle-stroke-width': 1.5, 'circle-stroke-color': '#ffffff'
+                }
+            });
+
+            map.addLayer({
+                id: 'camera-points', type: 'circle', source: 'v2x-data',
+                filter: ['==', ['get', 'type'], 'camera'],
+                paint: {
+                    'circle-radius': 5, 'circle-color': '#3b82f6',
+                    'circle-stroke-width': 1.5, 'circle-stroke-color': '#ffffff'
+                }
+            });
+
+            // Anchor Symbol Layer (Hidden by default, used for screenshot)
+            map.addLayer({
+                id: 'anchor-layer',
+                type: 'symbol',
+                source: 'anchor-source',
+                layout: {
+                    'icon-image': 'anchor-icon',
+                    // ✅ UPDATED: icon-size set to 0.3 as requested
+                    'icon-size': 0.3, 
+                    'icon-anchor': 'bottom',
+                    'icon-allow-overlap': true,
+                    'visibility': 'none'
+                }
+            });
+
+            // Click Handler
+            map.on('click', (e) => {
+                if (isAnchorMode) {
+                    setAnchor(e.lngLat);
+                    toggleAnchorMode(false);
+                    return;
+                }
+                const features = map.queryRenderedFeatures(e.point, { layers: ['v2x-points', 'camera-points'] });
+                if (!features.length) return;
+
+                const feature = features[0];
+                const props = feature.properties;
+                const coordinates = feature.geometry.coordinates.slice();
+
+                let distInfo = "";
+                if (anchorLocation) {
+                    const dist = getDistanceFromLatLonInM(anchorLocation.lat, anchorLocation.lng, coordinates[1], coordinates[0]);
+                    distInfo = `<div class="popup-row" style="margin-top:8px; border-top:1px solid #eee; padding-top:4px;"><span class="popup-label">Dist to Anchor</span><span class="popup-value">${dist.toFixed(1)} m</span></div>`;
+                }
+
+                let htmlContent = '';
+                let title = props.type === 'camera' ? 'Camera Detected' : 'V2X Traffic Signal';
+                let titleColor = props.type === 'camera' ? '#3b82f6' : '#111827';
+                let signalRow = props.type === 'camera' ? '' : `<div class="popup-row"><span class="popup-label">Signal</span><span class="popup-value" style="color:${getColor(props.signal)}">${props.signal}</span></div>`;
+
+                htmlContent = `
+                    <div>
+                        <div class="popup-row" style="color:${titleColor}; font-weight:700; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:8px;">${title}</div>
+                        <div class="popup-row"><span class="popup-label">Log ID</span><span class="popup-value">#${props.index}</span></div>
+                        <div class="popup-row"><span class="popup-label">Time</span><span class="popup-value">${props.time}</span></div>
+                        ${signalRow}
+                        ${distInfo}
+                    </div>`;
+
+                new maplibregl.Popup({ offset: 10, closeButton: false, maxWidth: '300px' }).setLngLat(coordinates).setHTML(htmlContent).addTo(map);
+            });
+
+            // Dragging Logic
+            map.on('mouseenter', 'anchor-layer', () => {
+                if (!isAnchorMode) map.getCanvas().style.cursor = 'move';
+            });
+            map.on('mouseleave', 'anchor-layer', () => {
+                if (!isAnchorMode && !isDraggingAnchor) map.getCanvas().style.cursor = '';
+            });
+
+            map.on('mousedown', 'anchor-layer', (e) => {
+                if (e.originalEvent.button !== 0) return;
+                isDraggingAnchor = true;
+                map.dragPan.disable();
+            });
+
+            map.on('mousemove', (e) => {
+                const features = map.queryRenderedFeatures(e.point, { layers: ['v2x-points', 'camera-points'] });
+                
+                if (isDraggingAnchor) {
+                    map.getCanvas().style.cursor = 'move';
+                    setAnchor(e.lngLat);
+                } else if (isAnchorMode) {
+                    map.getCanvas().style.cursor = 'crosshair';
+                } else {
+                    map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+                }
+            });
+
+            map.on('mouseup', () => {
+                if (isDraggingAnchor) {
+                    isDraggingAnchor = false;
+                    map.dragPan.enable();
+                    calculateStats();
+                }
+            });
+        });
+
+        function getColor(sig) {
+            if(sig === 'G') return '#10b981';
+            if(sig === 'Y') return '#f59e0b';
+            if(sig === 'R') return '#ef4444';
+            return '#9ca3af';
+        }
+
+        const anchorBtn = document.getElementById('setAnchorBtn');
+        anchorBtn.addEventListener('click', () => toggleAnchorMode(!isAnchorMode));
+
+        function toggleAnchorMode(enable) {
+            isAnchorMode = enable;
+            if (enable) {
+                anchorBtn.classList.add('active');
+                map.getCanvas().style.cursor = 'crosshair';
+            } else {
+                anchorBtn.classList.remove('active');
+                map.getCanvas().style.cursor = '';
+            }
+        }
+
+        function setAnchor(lngLat) {
+            if (anchorMarker) anchorMarker.remove();
+
+            const el = document.createElement('div');
+            el.className = 'anchor-wrapper';
+            el.innerHTML = `<div class="anchor-pin"></div><div class="anchor-shadow"></div>`;
+            el.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                isDraggingAnchor = true;
+                map.dragPan.disable();
+                e.stopPropagation();
+            });
+
+            // ✅ Offset adjusted for new size (24px height -> shift up ~12px)
+            anchorMarker = new maplibregl.Marker({ element: el, draggable: true, offset: [0, -16] })
+                .setLngLat(lngLat).addTo(map);
+            
+            anchorLocation = lngLat;
+            
+            const source = map.getSource('anchor-source');
+            if (source) {
+                source.setData({
+                    type: 'FeatureCollection',
+                    features: [{
+                        type: 'Feature',
+                        geometry: { type: 'Point', coordinates: [lngLat.lng, lngLat.lat] }
+                    }]
+                });
+            }
+            calculateStats();
+
+            anchorMarker.on('dragend', () => {
+                anchorLocation = anchorMarker.getLngLat();
+                const s = map.getSource('anchor-source');
+                if(s) s.setData({ type:'FeatureCollection', features:[{ type:'Feature', geometry:{ type:'Point', coordinates:[anchorLocation.lng, anchorLocation.lat] } }] });
+                calculateStats();
+            });
+        }
+
+        function calculateStats() {
+            if (!anchorLocation || loadedData.length === 0) return;
+            let startDist = null, v2xFirstDist = null, camFirstDist = null;
+
+            const firstRow = loadedData.find(r => r.Latitude && r.Longitude && !isNaN(parseFloat(r.Latitude)));
+            if (firstRow) startDist = getDistanceFromLatLonInM(anchorLocation.lat, anchorLocation.lng, parseFloat(firstRow.Latitude), parseFloat(firstRow.Longitude));
+
+            const v2xRow = loadedData.find(r => ['G','Y','R'].includes(r.V2XDetect ? String(r.V2XDetect).trim().toUpperCase() : '') && r.Latitude && !isNaN(parseFloat(r.Latitude)));
+            if (v2xRow) v2xFirstDist = getDistanceFromLatLonInM(anchorLocation.lat, anchorLocation.lng, parseFloat(v2xRow.Latitude), parseFloat(v2xRow.Longitude));
+
+            const camRow = loadedData.find(r => r.CameraDetect && String(r.CameraDetect).trim() !== '' && String(r.CameraDetect).toUpperCase() !== 'NAN' && r.Latitude && !isNaN(parseFloat(r.Latitude)));
+            if (camRow) camFirstDist = getDistanceFromLatLonInM(anchorLocation.lat, anchorLocation.lng, parseFloat(camRow.Latitude), parseFloat(camRow.Longitude));
+
+            updateHud(startDist, v2xFirstDist, camFirstDist);
+        }
+
+        document.getElementById('screenshotBtn').addEventListener('click', function() {
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.innerText = "Capturing...";
+            btn.style.opacity = "0.7";
+
+            // 1. Show Map Layer Anchor (No scaling needed, 0.3 matches visual intent)
+            if(map.getLayer('anchor-layer')) {
+                map.setLayoutProperty('anchor-layer', 'visibility', 'visible');
+            }
+            // Hide DOM marker
+            if(anchorMarker) anchorMarker.getElement().style.display = 'none';
+
+            setTimeout(() => {
+                html2canvas(document.body, { allowTaint: true, useCORS: true, scale: window.devicePixelRatio }).then(canvas => {
+                    const link = document.createElement('a');
+                    const now = new Date();
+                    const kstDate = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+                    const timestamp = kstDate.toISOString().replace(/[:.]/g, '-').slice(0,19) + "_KST";
+
+                    link.download = `V2X-Analysis-${timestamp}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    btn.innerHTML = originalText;
+                    btn.style.opacity = "1";
+
+                    // Revert
+                    if(map.getLayer('anchor-layer')) map.setLayoutProperty('anchor-layer', 'visibility', 'none');
+                    if(anchorMarker) anchorMarker.getElement().style.display = 'block';
+
+                }).catch(err => {
+                    console.error("Screenshot failed:", err);
+                    alert("Screenshot failed.");
+                    btn.innerHTML = originalText;
+                    btn.style.opacity = "1";
+                    if(map.getLayer('anchor-layer')) map.setLayoutProperty('anchor-layer', 'visibility', 'none');
+                    if(anchorMarker) anchorMarker.getElement().style.display = 'block';
+                });
+            }, 100);
+        });
+
+        function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
+            var R = 6371; var dLat = deg2rad(lat2 - lat1); var dLon = deg2rad(lon2 - lon1);
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c * 1000; 
+        }
+        function deg2rad(deg) { return deg * (Math.PI / 180); }
+
+        const fileInput = document.getElementById('csvFileInput');
+        fileInput.addEventListener('click', function() { this.value = null; });
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            document.querySelector('.file-upload-button').innerText = file.name;
+            
+            Papa.parse(file, {
+                header: true, dynamicTyping: true, skipEmptyLines: true, transformHeader: h => h.trim(),
+                complete: function(results) {
+                    loadedData = results.data;
+                    processData(loadedData);
+                    if (!anchorLocation && loadedData.length > 0) {
+                        const firstRow = loadedData.find(r => r.Latitude && !isNaN(parseFloat(r.Latitude)));
+                        if(firstRow) setAnchor({ lng: parseFloat(firstRow.Longitude), lat: parseFloat(firstRow.Latitude) });
+                    }
+                },
+                error: function(err) { updateStatus("Error: " + err.message, true); }
+            });
+        });
+
+        function processData(data) {
+            if (!map.getSource('v2x-data')) { alert("Map loading..."); return; }
+            updateStatus("Rendering data...");
+            
+            const features = [];
+            const bounds = new maplibregl.LngLatBounds();
+            const minDistance = parseFloat(document.getElementById('minDistInput').value) || 3.0;
+
+            let lastPlotLat = null, lastPlotLng = null, lastSignal = null, count = 0;
+
+            data.forEach((row, index) => {
+                const lat = row.Latitude;
+                const lng = row.Longitude;
+                if (!lat || !lng || isNaN(parseFloat(lat)) || isNaN(parseFloat(lng))) return;
+
+                const signal = row.V2XDetect ? String(row.V2XDetect).trim().toUpperCase() : '';
+                const cameraValue = row.CameraDetect;
+                const isCameraDetected = cameraValue && String(cameraValue).trim() !== '' && String(cameraValue).trim().toUpperCase() !== 'NAN';
+
+                let shouldPlot = false;
+                if (lastPlotLat === null) shouldPlot = true;
+                else {
+                    const dist = getDistanceFromLatLonInM(lastPlotLat, lastPlotLng, lat, lng);
+                    const signalChanged = (signal !== lastSignal);
+                    if (dist >= minDistance || signalChanged) shouldPlot = true;
+                }
+
+                if (shouldPlot) {
+                    features.push({
+                        type: 'Feature',
+                        geometry: { type: 'Point', coordinates: [lng, lat] },
+                        properties: { type: 'v2x', signal: signal, time: row.Timestamp, index: index }
+                    });
+                    
+                    if (isCameraDetected) {
+                        const offsetLng = lng + 0.00004;
+                        features.push({
+                            type: 'Feature',
+                            geometry: { type: 'Point', coordinates: [offsetLng, lat] },
+                            properties: { type: 'camera', time: row.Timestamp, index: index }
+                        });
+                        bounds.extend([offsetLng, lat]);
+                    }
+
+                    bounds.extend([lng, lat]);
+                    lastPlotLat = lat; lastPlotLng = lng; lastSignal = signal; count++;
+                }
+            });
+
+            if (count > 0) {
+                map.getSource('v2x-data').setData({ type: 'FeatureCollection', features: features });
+                map.fitBounds(bounds, { padding: 100 });
+                updateStatus(`Analysis Complete: ${count} points displayed.`);
+                calculateStats();
+            } else {
+                updateStatus("No data to display.", true);
+            }
+        }
+    </script>
+</body>
+</html>

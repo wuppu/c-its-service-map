@@ -32,9 +32,22 @@
             padding: 24px; border-radius: 16px; box-shadow: var(--shadow);
             z-index: 10; border: 1px solid var(--border-color);
             display: flex; flex-direction: column;
-            transition: all 0.3s ease; /* Smooth transition for responsiveness */
-            max-height: 90vh; overflow-y: auto;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* 애니메이션 속도 조절 */
         }
+
+        /* 모바일용 드래그 핸들 (PC에서는 안 보임) */
+        .panel-handle-area {
+            display: none; /* 기본 숨김 */
+            width: 100%; height: 20px; 
+            justify-content: center; align-items: center; 
+            cursor: pointer; margin-bottom: 5px;
+        }
+        .panel-handle {
+            width: 40px; height: 5px; 
+            background-color: #d1d5db; 
+            border-radius: 10px;
+        }
+
         .panel-header { margin-bottom: 20px; }
         .panel-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 10px 0; color: #111827; letter-spacing: -0.02em; }
         .panel-desc { font-size: 0.9rem; color: var(--text-sub); line-height: 1.5; margin: 0; }
@@ -92,7 +105,51 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             display: flex; align-items: center; gap: 24px; z-index: 20;
             border: 1px solid #ffffff80;
-            transition: all 0.3s ease;
+            transition: top 0.3s, bottom 0.3s, gap 0.3s;
+        }
+
+        /* ✅ MOBILE RESPONSIVE STYLES */
+        @media (max-width: 900px) {
+            /* 패널을 화면 하단(Bottom Sheet)으로 이동 */
+            .panel {
+                top: auto; bottom: 0; left: 0; width: 100%;
+                border-radius: 24px 24px 0 0;
+                max-height: 80vh; 
+                padding: 10px 20px 30px 20px;
+                box-sizing: border-box;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+                transform: translateY(0); /* 기본: 펼쳐진 상태 */
+            }
+
+            /* 패널이 접혔을 때의 위치 (화면 아래로 내려감) */
+            .panel.collapsed {
+                transform: translateY(calc(100% - 40px)); /* 타이틀만 남기고 내려감 */
+            }
+
+            /* 모바일에서만 핸들 표시 */
+            .panel-handle-area { display: flex; }
+
+            .panel-header { margin-bottom: 15px; }
+            .panel-title { font-size: 1.25rem; margin-bottom: 5px; }
+            /* Hide non-essential elements when collapsed could be added here if needed, 
+               but translateY handles visibility well */
+            
+            /* 2. HUD */
+            .map-hud {
+                top: 16px; bottom: auto; width: 90%;
+                padding: 8px 12px; gap: 10px; justify-content: space-between; border-radius: 16px;
+            }
+            .hud-item { min-width: auto; flex: 1; }
+            .hud-value { font-size: 0.95rem; }
+            .hud-btn { width: 36px; height: 36px; }
+            .hud-btn svg { width: 18px; height: 18px; }
+
+            .lbl-start { font-size: 0 !important; }
+            .lbl-start::after { content: "TEST"; font-size: 0.65rem; }
+            .lbl-v2x { font-size: 0 !important; }
+            .lbl-v2x::after { content: "V2X"; font-size: 0.65rem; }
+            .lbl-cam { font-size: 0 !important; }
+            .lbl-cam::after { content: "CAMERA"; font-size: 0.65rem; }
         }
 
         .hud-btn {
@@ -114,50 +171,6 @@
             white-space: nowrap; 
         }
         .hud-value { font-size: 1.15rem; font-weight: 800; color: #111827; font-variant-numeric: tabular-nums; }
-
-        /* ✅ MOBILE RESPONSIVE STYLES */
-        @media (max-width: 768px) {
-            /* 1. Panel moves to bottom (Bottom Sheet) */
-            .panel {
-                top: auto;
-                bottom: 0;
-                left: 0;
-                width: 100%;
-                border-radius: 24px 24px 0 0;
-                max-height: 45vh; /* Limit height */
-                padding: 20px;
-                box-sizing: border-box;
-                box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
-            }
-            .panel-header { margin-bottom: 15px; }
-            .panel-title { font-size: 1.25rem; margin-bottom: 5px; }
-            .panel-desc { display: none; /* Hide description on mobile to save space */ }
-            
-            /* 2. HUD moves to Top & Compact */
-            .map-hud {
-                top: 16px;
-                bottom: auto;
-                width: 90%; /* Fit width */
-                padding: 8px 12px;
-                gap: 10px;
-                justify-content: space-between;
-                border-radius: 16px;
-            }
-            .hud-item { min-width: auto; flex: 1; }
-            .hud-value { font-size: 0.95rem; }
-            .hud-btn { width: 36px; height: 36px; }
-            .hud-btn svg { width: 18px; height: 18px; }
-
-            /* Text Replacement for Mobile HUD */
-            .lbl-start { font-size: 0 !important; }
-            .lbl-start::after { content: "TEST"; font-size: 0.65rem; }
-            
-            .lbl-v2x { font-size: 0 !important; }
-            .lbl-v2x::after { content: "DETECT"; font-size: 0.65rem; }
-            
-            .lbl-cam { font-size: 0 !important; }
-            .lbl-cam::after { content: "CAMERA"; font-size: 0.65rem; }
-        }
 
         /* Marker Styles */
         .anchor-wrapper { position: relative; width: 40px; height: 40px; cursor: move; pointer-events: auto; }
@@ -214,7 +227,10 @@
         </div>
     </div>
 
-    <div class="panel">
+    <div id="mainPanel" class="panel">
+        <div class="panel-handle-area" id="panelToggle">
+            <div class="panel-handle"></div>
+        </div>
         <div class="panel-header">
             <h1 class="panel-title">C-ITS Service Analysis</h1>
             <p class="panel-desc">
@@ -271,6 +287,14 @@
             document.getElementById('hudV2XDist').innerText = (v2xDist !== null && !isNaN(v2xDist)) ? v2xDist.toFixed(1) + " m" : "-";
             document.getElementById('hudCamDist').innerText = (camDist !== null && !isNaN(camDist)) ? camDist.toFixed(1) + " m" : "-";
         }
+
+        // --- Toggle Panel Logic ---
+        const panel = document.getElementById('mainPanel');
+        const toggleHandle = document.getElementById('panelToggle');
+        
+        toggleHandle.addEventListener('click', () => {
+            panel.classList.toggle('collapsed');
+        });
 
         let loadedData = [];
         let anchorMarker = null;

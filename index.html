@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>C-ITS Service Analysis</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,26 +12,28 @@
     
     <style>
         :root {
-            --primary-color: #2564eb90;
+            --primary-color: #2563eb90;
             --primary-hover: #1d4ed8ab;
-            --danger-color: #ef4444ab;
-            --text-main: #1f293790;
+            --danger-color: #ef444490;
+            --text-main: #1f293780;
             --text-sub: #6b728090;
-            --bg-panel: rgba(255, 255, 255, 0.95);
-            --border-color: #e5e7eb90;
+            --bg-panel: rgba(255, 255, 255, 0.75);
+            --border-color: #e5e7eb;
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
 
         body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; color: var(--text-main); height: 100vh; overflow: hidden; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
 
-        /* Panel Style */
+        /* --- Panel Style (Desktop Default) --- */
         .panel {
             position: absolute; top: 24px; left: 24px; width: 340px;
-            background-color: rgba(255, 255, 255, 0.75); backdrop-filter: blur(8px);
-            padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            background-color: var(--bg-panel); backdrop-filter: blur(8px);
+            padding: 24px; border-radius: 16px; box-shadow: var(--shadow);
             z-index: 10; border: 1px solid var(--border-color);
             display: flex; flex-direction: column;
+            transition: all 0.3s ease; /* Smooth transition for responsiveness */
+            max-height: 90vh; overflow-y: auto;
         }
         .panel-header { margin-bottom: 20px; }
         .panel-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 10px 0; color: #111827; letter-spacing: -0.02em; }
@@ -47,68 +49,50 @@
             width: 100%; padding: 12px 16px;
             background-color: var(--primary-color); color: white; border-radius: 8px;
             font-size: 0.95rem; font-weight: 500; transition: background-color 0.2s;
-            box-sizing: border-box; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-sizing: border-box; border: none; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .file-upload-input:hover + .file-upload-button { background-color: var(--primary-hover); }
 
         .input-field {
             width: 100%; padding: 10px 12px;
-            background-color: #ffffff80;
-            border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 1px solid var(--border-color); border-radius: 8px;
             font-size: 0.9rem; box-sizing: border-box; font-family: inherit;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.5);
         }
-        .status-msg { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; color: var(--text-sub); font-weight: 500; }
+        .status-msg { font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; color: var(--text-sub); font-weight: 500; word-break: break-all;}
 
-        .legend { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color); }
-        .legend-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; font-weight: 600; margin-bottom: 12px; }
-        .legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .legend-item { display: flex; align-items: center; font-size: 0.875rem; color: #4b5563; }
-        .color-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; border: 1px solid rgba(0,0,0,0.1); }
+        .legend { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); }
+        .legend-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; font-weight: 600; margin-bottom: 10px; }
+        .legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .legend-item { display: flex; align-items: center; font-size: 0.8rem; color: #4b5563; }
+        .color-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; border: 1px solid rgba(0,0,0,0.1); }
 
-        .panel-footer { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color); }
+        .panel-footer { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); }
         .screenshot-button {
             display: flex; align-items: center; justify-content: center;
             width: 100%; padding: 12px 16px;
             background-color: var(--text-main); color: white; border-radius: 8px;
             font-size: 0.95rem; font-weight: 600; transition: background-color 0.2s;
-            box-sizing: border-box; border: none; cursor: pointer; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-sizing: border-box; border: none; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .screenshot-button:hover { background-color: #000000ab; }
         .screenshot-button svg { margin-right: 8px; }
 
-        /* HUD Style */
+        /* --- HUD Style --- */
         .map-hud {
             position: absolute; 
-            top: 24px; /* Default: Top */
+            top: 24px; /* Desktop: Top */
             left: 50%; 
             transform: translateX(-50%);
-            background-color: rgba(255, 255, 255, 0.75); backdrop-filter: blur(8px);
+            background-color: var(--bg-panel); backdrop-filter: blur(8px);
             padding: 8px 24px; border-radius: 50px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             display: flex; align-items: center; gap: 24px; z-index: 20;
-            border: 1px solid rgba(255,255,255,0.5);
-            transition: top 0.3s, bottom 0.3s; /* Smooth transition */
-        }
-
-        /* ✅ Responsive HUD: Move to bottom on smaller screens */
-        @media (max-width: 900px) {
-            .map-hud {
-                top: auto;
-                bottom: 40px;
-                gap: 16px;
-                padding: 8px 16px;
-            }
-
-            /* Text Replacement Trick using font-size:0 and ::after */
-            .lbl-start { font-size: 0 !important; }
-            .lbl-start::after { content: "TEST"; font-size: 0.7rem; }
-
-            .lbl-v2x { font-size: 0 !important; }
-            .lbl-v2x::after { content: "V2X"; font-size: 0.7rem; }
-            
-            .lbl-camera { font-size: 0 !important; }
-            .lbl-camera::after { content: "CAMERA"; font-size: 0.7rem; }
+            border: 1px solid #ffffff80;
+            transition: all 0.3s ease;
         }
 
         .hud-btn {
@@ -116,9 +100,9 @@
             width: 40px; height: 40px; border-radius: 50%;
             border: 2px solid var(--danger-color); color: var(--danger-color);
             background: #ffffff80; cursor: pointer; transition: all 0.2s;
-            flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .hud-btn:hover, .hud-btn.active { background-color: var(--danger-color); color: #ffffffab; }
+        .hud-btn:hover, .hud-btn.active { background-color: var(--danger-color); color: #ffffff80; }
         .hud-btn svg { width: 20px; height: 20px; }
         
         .hud-divider { width: 1px; height: 30px; background-color: #e5e7eb; }
@@ -127,29 +111,71 @@
         .hud-label {
             font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
             color: #6b7280; font-weight: 700; margin-bottom: 2px;
+            white-space: nowrap; 
         }
         .hud-value { font-size: 1.15rem; font-weight: 800; color: #111827; font-variant-numeric: tabular-nums; }
 
-        /* DOM Anchor Marker Style */
-        .anchor-wrapper {
-            position: relative;
-            width: 40px; height: 40px;
-            cursor: move;
-            pointer-events: auto;
+        /* ✅ MOBILE RESPONSIVE STYLES */
+        @media (max-width: 768px) {
+            /* 1. Panel moves to bottom (Bottom Sheet) */
+            .panel {
+                top: auto;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                border-radius: 24px 24px 0 0;
+                max-height: 45vh; /* Limit height */
+                padding: 20px;
+                box-sizing: border-box;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            }
+            .panel-header { margin-bottom: 15px; }
+            .panel-title { font-size: 1.25rem; margin-bottom: 5px; }
+            .panel-desc { display: none; /* Hide description on mobile to save space */ }
+            
+            /* 2. HUD moves to Top & Compact */
+            .map-hud {
+                top: 16px;
+                bottom: auto;
+                width: 90%; /* Fit width */
+                padding: 8px 12px;
+                gap: 10px;
+                justify-content: space-between;
+                border-radius: 16px;
+            }
+            .hud-item { min-width: auto; flex: 1; }
+            .hud-value { font-size: 0.95rem; }
+            .hud-btn { width: 36px; height: 36px; }
+            .hud-btn svg { width: 18px; height: 18px; }
+
+            /* Text Replacement for Mobile HUD */
+            .lbl-start { font-size: 0 !important; }
+            .lbl-start::after { content: "TEST"; font-size: 0.65rem; }
+            
+            .lbl-v2x { font-size: 0 !important; }
+            .lbl-v2x::after { content: "DETECT"; font-size: 0.65rem; }
+            
+            .lbl-cam { font-size: 0 !important; }
+            .lbl-cam::after { content: "CAMERA"; font-size: 0.65rem; }
         }
+
+        /* Marker Styles */
+        .anchor-wrapper { position: relative; width: 40px; height: 40px; cursor: move; pointer-events: auto; }
         .anchor-pin {
             position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-            width: 32px; height: 32px; 
+            width: 32px; height: 32px;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ef4444' stroke='%23b91c1c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'%3E%3C/path%3E%3Ccircle cx='12' cy='10' r='3' fill='white'/%3E%3C/svg%3E");
             background-size: contain; background-repeat: no-repeat;
             z-index: 2; transition: transform 0.1s;
         }
         .anchor-shadow {
-            position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
-            width: 12px; height: 4px; background: rgba(0,0,0,0.3);
+            position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+            width: 14px; height: 4px; background: rgba(0,0,0,0.3);
             border-radius: 50%; z-index: 1; filter: blur(1px);
         }
-        
+        .anchor-wrapper:hover .anchor-pin { transform: translateX(-50%) translateY(-2px); }
+        .anchor-wrapper:active .anchor-pin { transform: translateX(-50%) translateY(-4px); }
+
         .maplibregl-popup { z-index: 100 !important; }
         .maplibregl-popup-content {
             border-radius: 12px; padding: 16px;
@@ -183,7 +209,7 @@
             <span class="hud-value" id="hudV2XDist">-</span>
         </div>
         <div class="hud-item">
-            <span class="hud-label lbl-camera" style="color:#3b82f6;">CAMERA DETECTED DIST</span>
+            <span class="hud-label lbl-cam" style="color:#3b82f6;">CAMERA DETECTED DIST</span>
             <span class="hud-value" id="hudCamDist">-</span>
         </div>
     </div>
@@ -301,8 +327,8 @@
                 source: 'anchor-source',
                 layout: {
                     'icon-image': 'anchor-icon',
-                    // ✅ UPDATED: icon-size set to 0.3 as requested
-                    'icon-size': 0.3, 
+                    // Match visual size 32px (32/96 ~ 0.4 approx)
+                    'icon-size': 0.4, 
                     'icon-anchor': 'bottom',
                     'icon-allow-overlap': true,
                     'visibility': 'none'
@@ -362,7 +388,6 @@
 
             map.on('mousemove', (e) => {
                 const features = map.queryRenderedFeatures(e.point, { layers: ['v2x-points', 'camera-points'] });
-                
                 if (isDraggingAnchor) {
                     map.getCanvas().style.cursor = 'move';
                     setAnchor(e.lngLat);
@@ -416,7 +441,7 @@
                 e.stopPropagation();
             });
 
-            // ✅ Offset adjusted for new size (24px height -> shift up ~12px)
+            // ✅ Offset adjusted for 32px height -> shift up ~16px
             anchorMarker = new maplibregl.Marker({ element: el, draggable: true, offset: [0, -16] })
                 .setLngLat(lngLat).addTo(map);
             
@@ -464,7 +489,7 @@
             btn.innerText = "Capturing...";
             btn.style.opacity = "0.7";
 
-            // 1. Show Map Layer Anchor (No scaling needed, 0.3 matches visual intent)
+            // 1. Show Map Layer Anchor (Scaled for Screenshot)
             if(map.getLayer('anchor-layer')) {
                 map.setLayoutProperty('anchor-layer', 'visibility', 'visible');
             }

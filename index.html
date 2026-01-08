@@ -311,6 +311,11 @@
 
         // map.addControl(new maplibregl.NavigationControl(), 'top-right');
         map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
+        map.addControl(new maplibregl.NavigationControl({
+            showCompass: true,      // 나침반 아이콘 표시 (회전 시 북쪽 방향 지시)
+            showZoom: false,        // +, - 확대/축소 버튼 숨김 (화면을 깔끔하게 유지)
+            visualizePitch: true    // 3D 기울기(Pitch) 상태를 나침반에 시각화
+        }), 'top-right');
 
         map.on('load', () => {
             // Anchor Image
